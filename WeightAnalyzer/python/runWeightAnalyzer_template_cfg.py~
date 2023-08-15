@@ -1,0 +1,50 @@
+import FWCore.ParameterSet.Config as cms
+
+process = cms.Process("TEST")
+
+process.load("FWCore.MessageService.MessageLogger_cfi")
+process.MessageLogger.destinations = ['cout', 'cerr']
+process.MessageLogger.cerr.FwkReport.reportEvery = 5000
+
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32 ( -1 ) )
+
+process.source = cms.Source( "PoolSource",
+#### FOR TESTING
+#                             fileNames = cms.untracked.vstring(
+#        'root://cmsxrootd.fnal.gov//store/mc/RunIISummer16MiniAODv2/TprimeTprime_M-1000_TuneCUETP8M1_13TeV-madgraph-pythia8/MINIAODSIM/PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6-v1/100000/00880E5B-1BD8-E611-9E1F-0CC47A4D7636.root'),
+#        'root://eoscms.cern.ch//store/mc/RunIISummer16MiniAODv2/TT_TuneCUETP8M2T4_13TeV-powheg-pythia8/MINIAODSIM/PUMoriond17_80X_mcRun2_asymptotic_2016_TrancheIV_v6-v1/50000/0693E0E7-97BE-E611-B32F-0CC47A78A3D8.root'),
+#### FOR CONDOR
+                             fileNames = cms.untracked.vstring(CONDOR_FILELIST),
+                             inputCommands = cms.untracked.vstring('keep *'),
+                             )
+
+
+#run the producer -- USE WHICHEVER CONFIG ARGUMENTS NEEDED
+process.WeightAnalyzer = cms.EDAnalyzer(
+    "WeightAnalyzer",
+    #LHEEPTag   = cms.InputTag('externalLHEProducer'),
+    #isX53 = cms.bool(True),
+    #isWJ = cms.bool(False),
+    # JetsTag            = cms.InputTag('slimmedJets'),
+    # JetsTagAK8         = cms.InputTag('slimmedJetsAK8'),
+    # genParticles_it    = cms.InputTag('prunedGenParticles'),
+    # DiscriminatorTag   = cms.string('pfCombinedInclusiveSecondaryVertexV2BJetTags'),
+    # DiscriminatorValue = cms.double(0.8484),
+    # PtNBins            = cms.int32(50),
+    # PtMin              = cms.double(0.),
+    # PtMax              = cms.double(1000.),
+    # EtaNBins           = cms.int32(30),
+    # EtaMin             = cms.double(-3.0),
+    # EtaMax             = cms.double(3.0)
+    )
+
+process.TFileService = cms.Service("TFileService",
+                                   fileName = cms.string('CONDOR_OUTFILE.root') # for condor
+#                                   fileName = cms.string('test.root') # for testing
+                                   )
+
+process.p = cms.Path(process.WeightAnalyzer)
+
+
+
+

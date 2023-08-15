@@ -1,0 +1,492 @@
+// -*- C++ -*-
+//
+// Package:    MonteCarloInfo/WeightAnalyzer
+// Class:      WeightAnalyzer
+// 
+/**\class WeightAnalyzer WeightAnalyzer.cc MonteCarloInfo/WeightAnalyzer/plugins/WeightAnalyzer.cc
+
+ Description: [one line class summary]
+
+ Implementation:
+     [Notes on implementation]
+*/
+//
+// Original Author:  clint richardson
+//         Created:  Fri, 11 Sep 2015 16:29:00 GMT
+//
+//
+//COMMENT JUST CHECKING COMPILE
+
+// system include files
+#include <memory>
+#include <iostream>
+// user include files
+#include "FWCore/Framework/interface/Frameworkfwd.h"
+#include "FWCore/Framework/interface/EDAnalyzer.h"
+
+#include "FWCore/Framework/interface/Event.h"
+#include "FWCore/Framework/interface/Run.h"
+#include "FWCore/Framework/interface/MakerMacros.h"
+
+#include "FWCore/ParameterSet/interface/ParameterSet.h"
+#include "TLorentzVector.h"
+#include "SimDataFormats/GeneratorProducts/interface/GenEventInfoProduct.h"
+#include "DataFormats/VertexReco/interface/Vertex.h"
+#include "SimDataFormats/PileupSummaryInfo/interface/PileupSummaryInfo.h"
+#include "SimDataFormats/GeneratorProducts/interface/LHERunInfoProduct.h"
+#include "SimDataFormats/GeneratorProducts/interface/LHEEventProduct.h"
+#include "FWCore/ServiceRegistry/interface/Service.h"
+#include "CommonTools/UtilAlgos/interface/TFileService.h"
+#include "TMath.h"
+#include "TH1.h"
+#include "TTree.h"
+#include <iostream>
+#include <map>
+#include <string>
+#include <vector>
+#include <utility> // std::pair
+
+//
+// class declaration
+//
+
+class WeightAnalyzer : public edm::EDAnalyzer {
+public:
+  explicit WeightAnalyzer(const edm::ParameterSet&);
+  ~WeightAnalyzer();
+  
+  static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
+
+
+private:
+  virtual void beginJob() override;
+  virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
+  virtual void endJob() override;
+  TH1D* weightHist;
+  /*
+  TH1D* NumTrueHist;
+  TH1D* NumPUHist;
+  TH1D* NumPVHist;
+
+  TH1D* sumGenMuRup;
+  TH1D* sumGenMuRdn;
+  TH1D* sumGenMuFup;
+  TH1D* sumGenMuFdn;
+  TH1D* sumGenMuRFup;
+  TH1D* sumGenMuRFdn;
+  TH1D* sumGenPDFup;
+  TH1D* sumGenPDFdn;
+  */
+  std::vector<double> muRFvar;
+  std::vector<double> pdfvar;
+
+  TH1D* pdfweightvals;
+
+  /*
+  double NumTrueArray[60];
+  double NumPUArray[60];
+  double NumPVArray[60];
+  */
+  //  TTree* weightTree;
+  //  Double_t genEvtInfoWeight;
+  bool printrun = true;
+
+  int posweightsum = 0;
+  int negweightsum = 0;
+  int totalcount = 0;
+  int zeroweightsum = 0;
+
+  double weight = 1;
+
+  double muRup = 1;
+  double muRdn = 1;
+  double muFup = 1;
+  double muFdn = 1;
+  double muRFup = 1;
+  double muRFdn = 1;
+  double Pdfup = 1;
+  double Pdfdown = 1;
+
+  edm::EDGetTokenT<GenEventInfoProduct> GEIPtoken;  
+  edm::EDGetTokenT<LHEEventProduct> LHEEPtoken;
+
+  //  virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
+  //virtual void endRun(edm::Run const&, edm::EventSetup const&) override;
+  //virtual void beginLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&) override;
+  //virtual void endLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&) override;
+  
+  // ----------member data ---------------------------
+  const bool isX53;
+  const bool isWJ;
+
+};
+
+//
+// constants, enums and typedefs
+//
+
+//
+// static data member definitions
+//
+
+//
+// constructors and destructor
+//
+WeightAnalyzer::WeightAnalyzer(const edm::ParameterSet& iConfig):
+  isX53(iConfig.getParameter<bool>("isX53")),
+  isWJ(iConfig.getParameter<bool>("isWJ"))
+{
+  //now do what ever initialization is needed
+  edm::Service<TFileService> fs;
+  weightHist = fs->make<TH1D>("weightHist","MC Weight",10,-2,2); weightHist->Sumw2();
+
+  for(int i = 0; i < 7; i++){
+    muRFvar.push_back(0);
+  }
+  for(int i = 0; i < 101; i++){
+    pdfvar.push_back(0);
+  }
+
+  pdfweightvals = fs->make<TH1D>("pdfweightvals","pdfweightvals",500,0,5);
+
+  edm::InputTag GEIPtag("generator");
+  GEIPtoken = consumes<GenEventInfoProduct>(GEIPtag);
+
+  edm::InputTag LHEEPtag("externalLHEProducer");
+  LHEEPtoken = consumes<LHEEventProduct>(LHEEPtag);
+
+  /*
+  NumTrueHist = fs->make<TH1D>("NumTrueHist","True Interactions",60,0,60); NumTrueHist->Sumw2();
+  NumPUHist = fs->make<TH1D>("NumPUHist","PU Interactions",60,0,60); NumPUHist->Sumw2();
+  NumPVHist = fs->make<TH1D>("NumPVHist","NPV",60,0,60); NumPVHist->Sumw2();
+  //  weightTree = fs->make<TTree>("weightTree","MC Weight");
+  //  weightTree->Branch("genEvtInfoWeight",&genEvtInfoWeight,"genEvtInfoWeight/F");
+
+  for(int i = 0; i < 60; i++){
+    NumTrueArray[i] = 0.0;
+    NumPUArray[i] = 0.0;
+    NumPVArray[i] = 0.0;
+  }
+  */
+}
+
+
+WeightAnalyzer::~WeightAnalyzer()
+{
+ 
+   // do anything here that needs to be done at desctruction time
+   // (e.g. close files, deallocate resources etc.)
+
+}
+
+
+//
+// member functions
+//
+
+// ------------ method called for each event  ------------
+
+void WeightAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
+{
+  using namespace edm;
+  using namespace std;
+
+  edm::Handle<GenEventInfoProduct> genEvtInfo;
+  iEvent.getByToken(GEIPtoken,genEvtInfo);
+
+  //edm::Handle<GenEventInfoProduct> genEvtInfo;
+  //InputTag genInfo_it("generator");
+  //iEvent.getByLabel(genInfo_it, genEvtInfo);
+
+  weight = 1.0;
+  weight = genEvtInfo->weight()/fabs(genEvtInfo->weight());
+  /*
+  edm::Handle<std::vector<PileupSummaryInfo>> PupInfo;
+  if(!iEvent.getByLabel(edm::InputTag("addPileupInfo"), PupInfo)){
+    iEvent.getByLabel(edm::InputTag("slimmedAddPileupInfo"), PupInfo);
+  }
+
+  int NumTrueInts = -1;
+  int NumPUInts = -1;
+  for(std::vector<PileupSummaryInfo>::const_iterator PVI = PupInfo->begin(); PVI != PupInfo->end(); ++PVI){
+    int BX = PVI->getBunchCrossing();
+    if(BX == 0){
+      NumTrueInts = PVI->getTrueNumInteractions();
+      NumPUInts = PVI->getPU_NumInteractions();
+    }
+  }
+
+  NumTrueHist->Fill(NumTrueInts,weight);
+  NumPUHist->Fill(NumPUInts,weight);
+
+  if(NumTrueInts > -1) NumTrueArray[NumTrueInts] += weight;
+  if(NumPUInts > -1) NumPUArray[NumPUInts] += weight;
+
+  edm::Handle<std::vector<reco::Vertex> > pvHandle;
+  edm::InputTag pvCollection_it("offlineSlimmedPrimaryVertices");
+  iEvent.getByLabel(pvCollection_it, pvHandle);
+  std::vector<reco::Vertex> goodPVs;
+  goodPVs = *(pvHandle.product());
+  
+  int npv = (int)goodPVs.size();
+  NumPVHist->Fill(npv,weight);
+  NumPVArray[npv] += weight;
+  */
+  // Original method
+  if(genEvtInfo->weight() > 0) weightHist->Fill(1);
+  else weightHist->Fill(-1);
+
+  // Count
+  double countweight = genEvtInfo->weight();
+  if(countweight < 0) negweightsum++;
+  else if(countweight > 0) posweightsum++;
+  else zeroweightsum++;
+
+  totalcount++;
+
+  std::vector<double> LHEweights;
+  std::vector<int> LHEweightids;
+  
+  //edm::Handle<LHEEventProduct> EvtHandle;
+  //edm::InputTag theSrc("externalLHEProducer");
+  //if(iEvent.getByLabel(theSrc,EvtHandle)){
+
+  edm::Handle<LHEEventProduct> EvtHandle;
+  if(iEvent.getByToken(LHEEPtoken,EvtHandle)){
+
+    // Storing LHE weights https://twiki.cern.ch/twiki/bin/viewauth/CMS/LHEReaderCMSSW
+    // for MC@NLO renormalization and factorization scale. 
+    // ID numbers 1001 - 1009. (muR,muF) = 
+    // 0 = 1001: (1,1)    3 = 1004: (2,1)    6 = 1007: (0.5,1)  
+    // 1 = 1002: (1,2)    4 = 1005: (2,2)  	 7 = 1008: (0.5,2)  
+    // 2 = 1003: (1,0.5)  5 = 1006: (2,0.5)	 8 = 1009: (0.5,0.5)
+    // for PDF variations: ID numbers > 2000
+    
+    std::string weightidstr;
+    int weightid;
+    if(EvtHandle->weights().size() > 0){	  
+      for(unsigned int i = 0; i < EvtHandle->weights().size(); i++){
+	weightidstr = EvtHandle->weights()[i].id;
+	weightid = std::stoi(weightidstr);
+	LHEweights.push_back(EvtHandle->weights()[i].wgt/EvtHandle->originalXWGTUP());
+	LHEweightids.push_back(weightid);
+      }
+    }
+  }
+
+  //PDF and RENORM weights
+  std::vector<double> renorm;
+  std::vector<double> pdf;
+  if(isX53){
+    for(unsigned int i = 0; i < LHEweightids.size(); i++){
+      if(LHEweightids.at(i) > 1 && LHEweightids.at(i) < 10){
+	if(LHEweightids.at(i) == 6 || LHEweightids.at(i) == 8) continue;
+	renorm.push_back(LHEweights.at(i));
+      }
+      if(LHEweightids.at(i) > 111 && LHEweightids.at(i) < 212){
+	pdf.push_back(LHEweights.at(i));
+      }
+    }
+  }
+  else if(isWJ){
+    for(unsigned int i = 0; i < LHEweightids.size(); i++){
+      if(LHEweightids.at(i) > 1 && LHEweightids.at(i) < 10){
+	if(LHEweightids.at(i) == 6 || LHEweightids.at(i) == 8) continue;
+	renorm.push_back(LHEweights.at(i));
+      }
+      if(LHEweightids.at(i) > 10 && LHEweightids.at(i) < 111){
+	pdf.push_back(LHEweights.at(i));
+      }
+    }
+  }
+  else{
+    for(unsigned int i = 0; i < LHEweightids.size(); i++){
+      if(LHEweightids.at(i) > 1001 && LHEweightids.at(i) < 1010){
+	if(LHEweightids.at(i) == 1006 || LHEweightids.at(i) == 1008) continue;
+	renorm.push_back(LHEweights.at(i));
+      }
+      if(LHEweightids.at(i) > 2000 && LHEweightids.at(i) < 2101){
+	pdf.push_back(LHEweights.at(i));
+      }
+    }
+  }
+
+  muRFvar.at(0) += weight;
+  if(renorm.size() < 6) cout << "Didn't get all the renorm weights!" << endl;
+  else{
+    muRFvar.at(1) += weight*renorm.at(2);
+    muRFvar.at(2) += weight*renorm.at(4);
+    muRFvar.at(3) += weight*renorm.at(0);
+    muRFvar.at(4) += weight*renorm.at(1);
+    muRFvar.at(5) += weight*renorm.at(3);
+    muRFvar.at(6) += weight*renorm.at(5);
+  }
+
+  pdfvar.at(0) += weight;
+  if(pdf.size() < 100) cout << "Didn't get all the PDF weights!" << endl;
+  else{
+    //std::sort(pdf.begin(), pdf.end());
+    for(int i = 0; i < 100; i++){
+      pdfvar.at(i+1) += weight*pdf.at(i);
+      pdfweightvals->Fill(pdf.at(i),weight);
+    }
+  }
+
+  /*
+  // Save Tree branch
+  genEvtInfoWeight = genEvtInfo->weight();
+  weightTree->Fill();
+  */
+
+
+}
+
+// ------------ method called once each job just before starting event loop  ------------
+void 
+WeightAnalyzer::beginJob()
+{
+}
+
+// ------------ method called once each job just after ending the event loop  ------------
+void 
+WeightAnalyzer::endJob() 
+{
+
+  printf("Total events processed = %i\n",totalcount);
+  printf("Positive weight = %i\n",posweightsum);
+  printf("Negative weight = %i\n",negweightsum);
+  printf("Zero weight = %i\n",zeroweightsum);
+  printf("Adjusted count = %i\n",posweightsum - negweightsum);
+
+  double nominal = muRFvar.at(0);
+  
+  printf("Nominal yield = %f\n",nominal);
+
+  std::sort(muRFvar.begin(),muRFvar.end());
+  std::sort(pdfvar.begin(),pdfvar.end());
+
+  double muRFup = muRFvar.at(6);
+  double muRFdn = muRFvar.at(0);
+  double pdfup = pdfvar.at(83);
+  double pdfdn = pdfvar.at(15);
+
+  printf("MUup yield = %f\n",muRFup);
+  printf("MUdn yield = %f\n",muRFdn);
+  printf("PDFup yield = %f\n",pdfup);
+  printf("PDFdn yield = %f\n",pdfdn);
+
+  printf("\n --- Yield Quantiles method --- \n");
+
+  printf("MUup scale factor = %f\n",nominal/muRFup);
+  printf("MUdn scale factor = %f\n",nominal/muRFdn);
+  printf("PDFup scale factor = %f\n",nominal/pdfup);
+  printf("PDFdn scale factor = %f\n",nominal/pdfdn);
+  
+  printf("\n --- PDF RMS in 0, 5 --- \n");
+
+  double pdfMean = pdfweightvals->GetMean();
+  double pdfRMS = pdfweightvals->GetRMS();
+  
+  printf("PDF hist mean = %f\n",pdfMean);
+  printf("PDF hist RMS = %f\n",pdfRMS);
+  printf("PDFdn 1/(1-RMS) = %f\n",1.0/(1.0-pdfRMS)); 
+  printf("PDFup 1/(1+RMS) = %f\n",1.0/(1.0+pdfRMS)); 
+  printf("PDFdn Mean/(Mean-RMS) = %f\n",pdfMean/(pdfMean-pdfRMS)); 
+  printf("PDFup Mean/(Mean+RMS) = %f\n",pdfMean/(pdfMean+pdfRMS)); 
+
+  printf("\n --- PDF RMS in 0.01, 2 --- \n");
+
+  TH1D *pdf2 = (TH1D*)pdfweightvals->Clone("pdf2");
+  pdf2->GetXaxis()->SetRange(2,200);
+  double pdfMean2 = pdf2->GetMean();
+  double pdfRMS2 = pdf2->GetRMS();
+  
+  printf("PDF hist mean = %f\n",pdfMean2);
+  printf("PDF hist RMS = %f\n",pdfRMS2);
+  printf("PDFdn 1/(1-RMS) = %f\n",1.0/(1.0-pdfRMS2)); 
+  printf("PDFup 1/(1+RMS) = %f\n",1.0/(1.0+pdfRMS2)); 
+  printf("PDFdn Mean/(Mean2-RMS) = %f\n",pdfMean2/(pdfMean2-pdfRMS2)); 
+  printf("PDFup Mean/(Mean2+RMS) = %f\n",pdfMean2/(pdfMean2+pdfRMS2)); 
+  
+
+  /*
+  for(int i = 0; i < 60; i++){
+    printf("NumTrueInts: bin %i = %f\n",i,NumTrueArray[i]);
+  }
+  for(int i = 0; i < 60; i++){
+    printf("NumPUInts: bin %i = %f\n",i,NumPUArray[i]);
+  }
+  for(int i = 0; i < 60; i++){
+    printf("NumPVs: bin %i = %f\n",i,NumPVArray[i]);
+  }
+  */
+}
+
+// ------------ method called when starting to processes a run  ------------
+/*
+void 
+WeightAnalyzer::beginRun(edm::Run const& iRun, edm::EventSetup const&)
+{
+}
+
+*/
+// ------------ method called when ending the processing of a run  ------------
+ /*
+void 
+WeightAnalyzer::endRun(edm::Run const& iRun, edm::EventSetup const&)
+{
+  //  printrun = false;
+  if(printrun){
+    edm::Handle<LHERunInfoProduct> run; 
+    typedef std::vector<LHERunInfoProduct::Header>::const_iterator headers_const_iterator;
+    
+    if(iRun.getByLabel( "externalLHEProducer", run )){
+      LHERunInfoProduct myLHERunInfoProduct = *(run.product());
+      
+      int pdfidx = run->heprup().PDFSUP.first;
+      std::cout << "Nominal PDFset: " << pdfidx << std::endl;
+
+      for (headers_const_iterator iter=myLHERunInfoProduct.headers_begin(); iter!=myLHERunInfoProduct.headers_end(); iter++){
+	
+	std::cout << iter->tag() << std::endl;
+	std::vector<std::string> lines = iter->lines();
+	for (unsigned int iLine = 0; iLine<lines.size(); iLine++) {
+	  std::cout << lines.at(iLine);
+	}
+      }
+
+    }else{ std::cout << "No externalLHEProducer" << std::endl; }
+    printrun = false;
+  }
+}
+ */
+
+// ------------ method called when starting to processes a luminosity block  ------------
+/*
+void 
+WeightAnalyzer::beginLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&)
+{
+}
+*/
+
+// ------------ method called when ending the processing of a luminosity block  ------------
+/*
+void 
+WeightAnalyzer::endLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&)
+{
+}
+*/
+
+// ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
+void
+WeightAnalyzer::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
+  //The following says we do not know what parameters are allowed so do no validation
+  // Please change this to state exactly what you do use, even if it is no parameters
+  edm::ParameterSetDescription desc;
+  desc.setUnknown();
+  descriptions.addDefault(desc);
+}
+
+//define this as a plug-in
+DEFINE_FWK_MODULE(WeightAnalyzer);
+

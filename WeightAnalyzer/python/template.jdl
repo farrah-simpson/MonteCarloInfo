@@ -1,0 +1,12 @@
+universe = vanilla
+use_x509userproxy = true
+Executable = OUTPUT_DIR/PREFIX.csh
+Requirements   =  OpSys == "LINUX" && (Arch =="INTEL" || Arch =="x86_64")
+Should_Transfer_Files = YES
+WhenToTransferOutput = ON_EXIT
+Output = OUTPUT_DIR/PREFIX_JOBID.out
+Error  = OUTPUT_DIR/PREFIX_JOBID.err
+Log    = OUTPUT_DIR/PREFIX.log
++UseSL5 = False
+Arguments =  CMSSWBASE OUTPUT_DIR PREFIX JOBID
+Queue 1

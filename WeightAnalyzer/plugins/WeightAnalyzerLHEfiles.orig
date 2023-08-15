@@ -1,0 +1,308 @@
+// -*- C++ -*-
+//
+// Package:    MonteCarloInfo/WeightAnalyzer
+// Class:      WeightAnalyzer
+// 
+/**\class WeightAnalyzer WeightAnalyzer.cc MonteCarloInfo/WeightAnalyzer/plugins/WeightAnalyzer.cc
+
+ Description: [one line class summary]
+
+ Implementation:
+     [Notes on implementation]
+*/
+//
+// Original Author:  clint richardson
+//         Created:  Fri, 11 Sep 2015 16:29:00 GMT
+//
+//
+
+
+// system include files
+#include <memory>
+#include <iostream>
+// user include files
+#include "FWCore/Framework/interface/Frameworkfwd.h"
+#include "FWCore/Framework/interface/EDAnalyzer.h"
+
+#include "FWCore/Framework/interface/Event.h"
+#include "FWCore/Framework/interface/MakerMacros.h"
+
+#include "FWCore/ParameterSet/interface/ParameterSet.h"
+#include "TLorentzVector.h"
+#include "SimDataFormats/GeneratorProducts/interface/GenEventInfoProduct.h"
+#include "FWCore/ServiceRegistry/interface/Service.h"
+#include "CommonTools/UtilAlgos/interface/TFileService.h"
+#include "SimDataFormats/GeneratorProducts/interface/LHEEventProduct.h"
+#include "TMath.h"
+#include "TH1.h"
+#include "TH2D.h"
+#include "TTree.h"
+#include <TRandom.h>
+#include <TRandom3.h>
+#include <iostream>
+#include <map>
+#include <string>
+#include <vector>
+#include <utility> // std::pair
+
+//
+// class declaration
+//
+
+class WeightAnalyzer : public edm::EDAnalyzer {
+public:
+  explicit WeightAnalyzer(const edm::ParameterSet&);
+  ~WeightAnalyzer();
+  
+  static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
+  
+  
+private:
+  virtual void beginJob() override;
+  virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
+  virtual void endJob() override;
+  TH1D *Nevts;
+  TH1D *GenHT;
+  TH1D *GenHT_udscbg;
+  TH1D *NHT_qq;
+  TH1D *NHT_qbqb;
+  TH1D *NHT_qqb;
+  TH1D *NHT_qg;
+  TH1D *NHT_qbg;
+  TH1D *NHT_gg;
+  TH1D *NHT_all;
+  TH1D *GenHT_allqg;
+  TTree *LHEtree;
+
+  Float_t weight;
+  Float_t weightOrig;
+  Float_t genht;
+  Float_t genht_ana;
+  Int_t    npartons;
+  Int_t    npartons_ana;
+  Int_t    collision;
+  
+
+  //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
+  //virtual void endRun(edm::Run const&, edm::EventSetup const&) override;
+  //virtual void beginLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&) override;
+  //virtual void endLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&) override;
+  
+  // ----------member data ---------------------------
+  const edm::InputTag LHEEPTag;
+  double htbins[23] = {0,50,100,150,200,250,300,350,400,500,600,700,800,900,1000,1200,1400,1600,1800,2000,3000,4000,5000};
+
+};
+
+//
+// constants, enums and typedefs
+//
+
+//
+// static data member definitions
+//
+
+//
+// constructors and destructor
+//
+WeightAnalyzer::WeightAnalyzer(const edm::ParameterSet& iConfig) :
+
+  LHEEPTag(iConfig.getParameter<edm::InputTag>("LHEEPTag"))
+
+{
+   //now do what ever initialization is needed
+  //  double ptbins[10] = {0,30,50,70,100,140,200,300,670,1000};
+  //  double etabins[5] = {0,0.8,1.5,2.4,3.0};
+
+  edm::Service<TFileService> fs;
+  Nevts = fs->make<TH1D>("Nevts","",2,0,2); Nevts->Sumw2();
+  GenHT = fs->make<TH1D>("GenHT","",22,htbins); GenHT->Sumw2();
+  GenHT_udscbg = fs->make<TH1D>("GenHT_udscbg","",22,htbins); GenHT_udscbg->Sumw2();
+  NHT_qq  = fs->make<TH1D>("NHT_qq ","",6,0,6); NHT_qq ->Sumw2();
+  NHT_qbqb  = fs->make<TH1D>("NHT_qbqb ","",6,0,6); NHT_qbqb ->Sumw2();
+  NHT_qqb = fs->make<TH1D>("NHT_qqb","",6,0,6); NHT_qqb->Sumw2();
+  NHT_qg  = fs->make<TH1D>("NHT_qg ","",6,0,6); NHT_qg ->Sumw2();
+  NHT_qbg = fs->make<TH1D>("NHT_qbg","",6,0,6); NHT_qbg->Sumw2();
+  NHT_gg  = fs->make<TH1D>("NHT_gg ","",6,0,6); NHT_gg ->Sumw2();
+  NHT_all = fs->make<TH1D>("NHT_all","",6,0,6); NHT_all->Sumw2();
+  GenHT_allqg = fs->make<TH1D>("GenHT_allqg","",22,htbins); GenHT_allqg->Sumw2();
+  LHEtree = fs->make<TTree>("LHEtree","LHEtree");
+  LHEtree->Branch("weight",&weight,"weight/F");
+  LHEtree->Branch("weightOrig",&weightOrig,"weightOrig/F");
+  LHEtree->Branch("genht",&genht,"genht/F");
+  LHEtree->Branch("genht_ana",&genht_ana,"genht_ana/F");
+  LHEtree->Branch("npartons",&npartons,"npartons/I");
+  LHEtree->Branch("npartons_ana",&npartons_ana,"npartons_ana/I");
+  LHEtree->Branch("collision",&collision,"collision/I");
+
+}
+
+
+WeightAnalyzer::~WeightAnalyzer()
+{
+ 
+   // do anything here that needs to be done at desctruction time
+   // (e.g. close files, deallocate resources etc.)
+
+}
+
+
+//
+// member functions
+//
+
+// ------------ method called for each event  ------------
+void
+WeightAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
+{
+
+  edm::Handle<LHEEventProduct> lhe_info;
+  iEvent.getByLabel(LHEEPTag,lhe_info);
+
+  genht = 0;
+  npartons = 0;
+  collision = -1;
+  weight = 0;
+
+  double ht = 0;
+  double ht_udscbg = 0;
+  double ht_allqg = 0;
+  int n_udscbg = 0;
+  int npts = 0;
+
+  bool isgg = false;
+  bool isqq = false;
+  bool isqbqb = false;
+  bool isqqb = false;
+  bool isqg = false;
+  bool isqbg = false;  
+
+  int incoming1 = -99;
+  int incoming2 = -99;
+
+  for ( unsigned int icount = 0 ; icount < (unsigned int)lhe_info->hepeup().NUP; icount++ ) {
+    int pdgid = lhe_info->hepeup().IDUP[icount];
+    int status = lhe_info->hepeup().ISTUP[icount];
+    int mom1id = abs(lhe_info->hepeup().IDUP[lhe_info->hepeup().MOTHUP[icount].first-1]);
+    int mom2id = abs(lhe_info->hepeup().IDUP[lhe_info->hepeup().MOTHUP[icount].second-1]);
+    float px = (lhe_info->hepeup().PUP[icount])[0];
+    float py = (lhe_info->hepeup().PUP[icount])[1];
+    float pt = sqrt(px*px+py*py);
+    weight = lhe_info->hepeup().XWGTUP;
+    weightOrig = lhe_info->originalXWGTUP();
+
+    if(status == -1){
+
+      if(incoming1 == -99) incoming1 = pdgid;
+      else if(incoming2 == -99) incoming2 = pdgid;
+      else std::cout << "got a 3rd status -1: #1 = " << incoming1 << ", #2 = " << incoming2 << ", #3 = " << pdgid << std::endl;
+    }
+
+    if(status==1){
+
+      if(abs(pdgid)<7 || abs(pdgid)==21){ ht += pt; npts++;}
+
+      if(mom1id!=6 && mom2id!=6 && mom1id!=24 && mom2id!=24 && mom1id!=23 && mom2id!=23 && mom1id!=25 && mom2id!=25) {
+
+	if(abs(pdgid)<6 || abs(pdgid)==21){ ht_udscbg += pt; n_udscbg++;}
+	if(abs(pdgid)<7 || abs(pdgid)==21) ht_allqg += pt;
+      }
+    }
+  }
+
+  if(incoming1 == 21 && incoming2 == 21) isqq = true;
+  else if(incoming1 == 21 && incoming2 < 7 && incoming2 > 0) isqg = true;
+  else if(incoming2 == 21 && incoming1 < 7 && incoming1 > 0) isqg = true;
+  else if(incoming1 == 21 && incoming2 > -7 && incoming2 < 0) isqbg = true;
+  else if(incoming2 == 21 && incoming1 > -7 && incoming1 < 0) isqbg = true;
+  else if(incoming1 > 0 && incoming1 < 7 && incoming2 > 0 && incoming2 < 7) isqq = true;
+  else if(incoming1 < 0 && incoming1 > -7 && incoming2 < 0 && incoming2 > -7) isqbqb = true;
+  else if(incoming1 > 0 && incoming1 < 7 && incoming2 > -7 && incoming2 < 0) isqqb = true;
+  else if(incoming2 > 0 && incoming2 < 7 && incoming1 > -7 && incoming1 < 0) isqqb = true;
+  else std::cout << "Didn't categorize this one: #1 = " << incoming1 << ", #2 = " << incoming2 << std::endl;
+
+  genht = ht;
+  genht_ana = ht_udscbg;
+  npartons = npts;
+  npartons_ana = n_udscbg;
+  
+  if(ht > 5000) ht = 4990;
+  if(ht_udscbg > 5000) ht_udscbg = 4990;
+  if(ht_allqg > 5000) ht_allqg = 4990;
+  if(n_udscbg > 20) n_udscbg = 20;
+  
+  if(isqq){ NHT_qq->Fill(n_udscbg); collision = 0;}
+  if(isqbqb){ NHT_qbqb->Fill(n_udscbg); collision = 1;}
+  if(isqqb){ NHT_qqb->Fill(n_udscbg); collision = 2;}
+  if(isqg){ NHT_qg->Fill(n_udscbg); collision = 3;}
+  if(isqbg){ NHT_qbg->Fill(n_udscbg); collision = 4;}
+  if(isgg){ NHT_gg->Fill(n_udscbg); collision = 5;}
+
+  GenHT->Fill(ht);
+  GenHT_udscbg->Fill(ht_udscbg);
+  NHT_all->Fill(n_udscbg);
+  GenHT_allqg->Fill(ht_allqg);
+
+  Nevts->Fill(1.0);
+
+  LHEtree->Fill();
+
+}
+
+
+// ------------ method called once each job just before starting event loop  ------------
+void 
+WeightAnalyzer::beginJob()
+{
+}
+
+// ------------ method called once each job just after ending the event loop  ------------
+void 
+WeightAnalyzer::endJob() 
+{
+}
+
+// ------------ method called when starting to processes a run  ------------
+/*
+void 
+WeightAnalyzer::beginRun(edm::Run const&, edm::EventSetup const&)
+{
+}
+*/
+
+// ------------ method called when ending the processing of a run  ------------
+/*
+void 
+WeightAnalyzer::endRun(edm::Run const&, edm::EventSetup const&)
+{
+}
+*/
+
+// ------------ method called when starting to processes a luminosity block  ------------
+/*
+void 
+WeightAnalyzer::beginLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&)
+{
+}
+*/
+
+// ------------ method called when ending the processing of a luminosity block  ------------
+/*
+void 
+WeightAnalyzer::endLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&)
+{
+}
+*/
+
+// ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
+void
+WeightAnalyzer::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
+  //The following says we do not know what parameters are allowed so do no validation
+  // Please change this to state exactly what you do use, even if it is no parameters
+  edm::ParameterSetDescription desc;
+  desc.setUnknown();
+  descriptions.addDefault(desc);
+}
+
+//define this as a plug-in
+DEFINE_FWK_MODULE(WeightAnalyzer);
