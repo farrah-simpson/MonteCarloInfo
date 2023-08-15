@@ -422,18 +422,18 @@ WeightAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
        jetEnergy.push_back(corrak8.energy());
     
        /////////////// Now make an L2+L3 corrected AK8 jet for grooming ///////////////////////
-       pat::Jet l2l3jet = *ijet;
-       jecak8->setJetEta(l2l3jet.correctedJet(0).eta());
-       jecak8->setJetPt(l2l3jet.correctedJet(0).pt());
-       jecak8->setJetE(l2l3jet.correctedJet(0).energy());
-       jecak8->setJetA(l2l3jet.jetArea());
-       jecak8->setRho(rho);
-       double corr = jecak8->getCorrection();
-       l2l3jet.scaleEnergy(corr);
-
-       parameters.setJetPt(l2l3jet.pt());
-       parameters.setJetEta(l2l3jet.eta());
-       parameters.setRho(rho);
+//       pat::Jet l2l3jet = *ijet;
+//       jecak8->setJetEta(l2l3jet.correctedJet(0).eta());
+//       jecak8->setJetPt(l2l3jet.correctedJet(0).pt());
+//       jecak8->setJetE(l2l3jet.correctedJet(0).energy());
+//       jecak8->setJetA(l2l3jet.jetArea());
+//       jecak8->setRho(rho);
+//       double corr = jecak8->getCorrection();
+//       l2l3jet.scaleEnergy(corr);
+//
+//       parameters.setJetPt(l2l3jet.pt());
+//       parameters.setJetEta(l2l3jet.eta());
+//       parameters.setRho(rho);
 //       res = resolutionAK8.getResolution(parameters);
 
        // JetWTagging TWiki: 80X JER, resolution scale factor = 1.26 (2017), 1.114 (2018)
